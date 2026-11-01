@@ -134,10 +134,6 @@ class HappyAgent:
                     break
                 result = self._call_tool(name, arguments, tool_call_id)
                 self._add_memory("tool", result, None, None, tool_call_id = tool_call_id)
-
-        if content:
-            self._add_memory("assistant", content, reasoning_content)
-
         return finish
 
     def _add_memory(self, role, content, reasoning_content: str| None= None, tool_calls:list|None = None, tool_call_id: str | None = None):
