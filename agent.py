@@ -17,14 +17,15 @@ type_mapping = {
     dict: "object"
 }
 
-def finish_chat():
+
+def finish_chat(final_answer: str):
     """
     如果当前对话已经结束，必须调用这个方法来结束对话循环
     例如一个简单问答结束，或者一个循环任务结束，最终必须调用这个方法来结束循环
-    返回一个布尔值True
-    :return: 一个布尔值，True
+    :param final_answer: 最终给用户的回答
+    :return: 最终给用户的回答
     """
-    return True
+    return final_answer
 
 
 def _parse_tool(tool_call: ChatCompletionMessageFunctionToolCall):
@@ -109,32 +110,45 @@ class HappyAgent:
         self.tool_map: Dict[str, Callable] = {}
         self.tools: list = []
         self.add_tools([finish_chat])
+        print("HappyAgent 已启动...")
 
     def run(self, prompt):
+        print("开始执行任务...")
         self._add_memory("user", prompt)
-        self._loop()
-        return self.memory
+        final_result = self._loop()
+        return final_result
 
     def _loop(self):
         finish = False
         step = 0
+        final_result = ""
         while not finish and step <= self.max_step:
             step += 1
             message = self._call_llm()
             self._add_memory("assistant", message.content, message.reasoning_content, message.tool_calls)
-            finish = self._step(message.content, message.reasoning_content, message.tool_calls)
+            # if message.reasoning_content:
+            #     print(message.reasoning_content)
+            # if message.content:
+            #     print(message.content)
+            finish, final_result = self._step(message.tool_calls)
+        return final_result
 
-    def _step(self, content, reasoning_content, tool_call_list):
+    def _step(self, tool_call_list):
         finish = False
+        final_result = ""
         if tool_call_list:
             for tool_call_json in tool_call_list:
                 tool_call_id, name, arguments = _parse_tool(tool_call_json)
-                if name == 'finish_chat':
-                    finish = True
-                    break
+                if name != "finish_chat":
+                    print(f"正在调用工具：{name}")
                 result = self._call_tool(name, arguments, tool_call_id)
                 self._add_memory("tool", result, None, None, tool_call_id = tool_call_id)
-        return finish
+                if name == 'finish_chat':
+                    finish = True
+                    final_result = result
+        else:
+            finish = True
+        return finish, final_result
 
     def _add_memory(self, role, content, reasoning_content: str| None= None, tool_calls:list|None = None, tool_call_id: str | None = None):
         content_ = {"role": role, "content": content}

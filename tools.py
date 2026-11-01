@@ -1,5 +1,7 @@
 import os
 
+import json
+
 
 def list_files(path: str):
     """
@@ -35,4 +37,4 @@ def read_file(path: str):
         return None
     with open(path, "r", encoding="utf-8") as f:
         content = f.read()
-    return content
+    return json.dumps(content, ensure_ascii=False)
