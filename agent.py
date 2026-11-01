@@ -1,10 +1,10 @@
 import inspect
-import os
-from codecs import namereplace_errors
-from typing import Dict, Callable, List, Any
-from docstring_parser import parse
 import json
+import os
+from logging import error
+from typing import Dict, Callable, List, Any
 
+from docstring_parser import parse
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
 
@@ -141,7 +141,7 @@ class HappyAgent:
                 tool_call_id, name, arguments = _parse_tool(tool_call_json)
                 if name != "finish_chat":
                     print(f"正在调用工具：{name}")
-                result = self._call_tool(name, arguments, tool_call_id)
+                result = self._call_tool(name, arguments)
                 self._add_memory("tool", result, None, None, tool_call_id = tool_call_id)
                 if name == 'finish_chat':
                     finish = True
@@ -160,13 +160,19 @@ class HappyAgent:
             content_["tool_calls"] = tool_calls
         self.memory.append(content_)
 
-    def _call_tool(self, tool_name, params, id1):
+    def _call_tool(self, tool_name, params):
+        if tool_name not in self.tool_map:
+            return f"tool call error: {tool_name} not exists"
         tool = self.tool_map[tool_name]
-        if tool:
+        if tool_name == "finish_chat":
+            return json.loads(params)["final_answer"]
+        try:
             result = tool(**json.loads(params))
-            return json.dumps(result)
-        else:
-            return "tool call error"
+        except RuntimeError as e:
+            error(f"tool call error: {e}")
+            result = f"tool call error:{e}"
+        return json.dumps(result)
+
 
     def _call_llm(self):
         response = self.client.chat.completions.create(
