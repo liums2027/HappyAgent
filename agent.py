@@ -104,7 +104,7 @@ def _tool_schema(tool):
 
 
 class HappyAgent:
-    def __init__(self):
+    def __init__(self, work_space: str):
         self.api_key = os.getenv("DEEPSEEK_API_KEY")
         self.client = OpenAI(
             api_key=self.api_key,
@@ -114,7 +114,7 @@ class HappyAgent:
         self.tool_map: Dict[str, Callable] = {}
         self.tools: list = []
         self.add_tools([finish_chat])
-        self.white_list: list = []
+        self.white_list: list = [work_space]
         print("HappyAgent 已启动...")
 
     def run(self, prompt):
@@ -170,10 +170,12 @@ class HappyAgent:
             return json.loads(params)["final_answer"]
         try:
             path_params = getattr(tool, "__required_path_params__")
+            tool_params = json.loads(params)
             if path_params:
                 for path_param in path_params:
-                    if not check_allow(self.white_list, path_param):
-                        raise ValueError(f"no permission: {path_param}")
+                    real_param = tool_params.get(path_param)
+                    if not check_allow(self.white_list, real_param):
+                        raise ValueError(f"no permission: {real_param}")
             result = tool(**json.loads(params))
         except Exception as e:
             traceback.print_exc()

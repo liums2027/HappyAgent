@@ -25,6 +25,8 @@ def list_files(path: str):
                     temp_result = list_files(temp)
                     if temp_result:
                         result.append(temp_result)
+    elif os.path.islink(path):
+        return result
     return result
 
 
