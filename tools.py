@@ -1,6 +1,8 @@
 import os
+from security import require_path
 
 
+@require_path("path")
 def list_files(path: str):
     """
     递归获取当前路径下的所有文件
@@ -25,6 +27,8 @@ def list_files(path: str):
                         result.append(temp_result)
     return result
 
+
+@require_path("path")
 def read_file(path: str):
     """
     读取当前文件的所有内容，如果是文件夹则返回为空

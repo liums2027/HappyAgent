@@ -1,12 +1,16 @@
 import inspect
 import json
 import os
+import traceback
 from logging import error
 from typing import Dict, Callable, List, Any
 
 from docstring_parser import parse
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
+from referencing import retrieval
+
+from security import check_allow
 
 type_mapping = {
     str: "string",
@@ -78,7 +82,7 @@ def _tool_schema(tool):
     tool_json_schema: dict[str, Any] = {"type": "function"}
     functions = {"name": tool.__name__, "description": tool.__doc__}
     tool_json_schema["function"] = functions
-    parameters: dict[str,Any] = {"type": "object", "additionalProperties": False}
+    parameters: dict[str, Any] = {"type": "object", "additionalProperties": False}
     functions["parameters"] = parameters
     properties = {}
 
@@ -110,6 +114,7 @@ class HappyAgent:
         self.tool_map: Dict[str, Callable] = {}
         self.tools: list = []
         self.add_tools([finish_chat])
+        self.white_list: list = []
         print("HappyAgent 已启动...")
 
     def run(self, prompt):
@@ -126,10 +131,6 @@ class HappyAgent:
             step += 1
             message = self._call_llm()
             self._add_memory("assistant", message.content, message.reasoning_content, message.tool_calls)
-            # if message.reasoning_content:
-            #     print(message.reasoning_content)
-            # if message.content:
-            #     print(message.content)
             finish, final_result = self._step(message.tool_calls)
         return final_result
 
@@ -142,7 +143,7 @@ class HappyAgent:
                 if name != "finish_chat":
                     print(f"正在调用工具：{name}")
                 result = self._call_tool(name, arguments)
-                self._add_memory("tool", result, None, None, tool_call_id = tool_call_id)
+                self._add_memory("tool", result, None, None, tool_call_id=tool_call_id)
                 if name == 'finish_chat':
                     finish = True
                     final_result = result
@@ -150,7 +151,8 @@ class HappyAgent:
             finish = True
         return finish, final_result
 
-    def _add_memory(self, role, content, reasoning_content: str| None= None, tool_calls:list|None = None, tool_call_id: str | None = None):
+    def _add_memory(self, role, content, reasoning_content: str | None = None, tool_calls: list | None = None,
+                    tool_call_id: str | None = None):
         content_ = {"role": role, "content": content}
         if reasoning_content:
             content_["reasoning_content"] = reasoning_content
@@ -167,12 +169,16 @@ class HappyAgent:
         if tool_name == "finish_chat":
             return json.loads(params)["final_answer"]
         try:
+            path_params = getattr(tool, "__required_path_params__")
+            if path_params:
+                for path_param in path_params:
+                    if not check_allow(self.white_list, path_param):
+                        raise ValueError(f"no permission: {path_param}")
             result = tool(**json.loads(params))
-        except RuntimeError as e:
-            error(f"tool call error: {e}")
+        except Exception as e:
+            traceback.print_exc()
             result = f"tool call error:{e}"
         return json.dumps(result)
-
 
     def _call_llm(self):
         response = self.client.chat.completions.create(
