@@ -1,4 +1,7 @@
 import os
+
+from langchain_classic.tools.file_management import list_dir
+
 from security import require_path
 
 
@@ -10,7 +13,9 @@ def list_files(path: str):
     :return: 一个列表，当前路径下的所有文件
     """
     result = []
-    if os.path.isfile(path):
+    if os.path.islink(path):
+        return result
+    elif os.path.isfile(path):
         result.append(path)
     elif os.path.isdir(path):
         dir_list = os.listdir(path)
@@ -19,14 +24,16 @@ def list_files(path: str):
                 if item.startswith("."):
                     continue
                 temp = os.path.join(path, item)
+                if os.path.islink(temp):
+                    continue
                 if os.path.isfile(temp):
                     result.append(temp)
                 elif os.path.isdir(temp):
                     temp_result = list_files(temp)
                     if temp_result:
-                        result.append(temp_result)
-    elif os.path.islink(path):
-        return result
+                        for p in temp_result:
+                            result.append(list_files(p))
+
     return result
 
 

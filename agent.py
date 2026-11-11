@@ -2,14 +2,11 @@ import inspect
 import json
 import os
 import traceback
-from logging import error
 from typing import Dict, Callable, List, Any
-from unittest import result
 
 from docstring_parser import parse
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
-from referencing import retrieval
 
 from security import check_allow
 
@@ -164,12 +161,13 @@ class HappyAgent:
         self.memory.append(content_)
 
     def _call_tool(self, tool_name, params):
-        if tool_name not in self.tool_map:
-            return f"tool call error: {tool_name} not exists"
-        tool = self.tool_map[tool_name]
-        if tool_name == "finish_chat":
-            return json.loads(params)["final_answer"]
         try:
+            if tool_name not in self.tool_map:
+                return f"tool call error: {tool_name} not exists"
+            tool = self.tool_map[tool_name]
+            if tool_name == "finish_chat":
+                return json.loads(params)["final_answer"]
+            
             tool_params = json.loads(params)
             is_allowed, path = self._check_path_allowed(tool, tool_params)
             if not is_allowed:
