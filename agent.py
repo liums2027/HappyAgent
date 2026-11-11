@@ -4,6 +4,7 @@ import os
 import traceback
 from logging import error
 from typing import Dict, Callable, List, Any
+from unittest import result
 
 from docstring_parser import parse
 from openai import OpenAI
@@ -169,18 +170,27 @@ class HappyAgent:
         if tool_name == "finish_chat":
             return json.loads(params)["final_answer"]
         try:
-            path_params = getattr(tool, "__required_path_params__")
             tool_params = json.loads(params)
-            if path_params:
-                for path_param in path_params:
-                    real_param = tool_params.get(path_param)
-                    if not check_allow(self.white_list, real_param):
-                        raise ValueError(f"no permission: {real_param}")
-            result = tool(**json.loads(params))
+            is_allowed, path = self._check_path_allowed(tool, tool_params)
+            if not is_allowed:
+                result = f"path not allowed: {path}"
+            else:
+                result = tool(**tool_params)
         except Exception as e:
             traceback.print_exc()
             result = f"tool call error:{e}"
         return json.dumps(result)
+
+    def _check_path_allowed(self, tool, params):
+        required_params = getattr(tool, "__required_path_params__")
+        if required_params:
+            for required_param in required_params:
+                real_param = params.get(required_param)
+                if not check_allow(self.white_list, real_param):
+                    return False, real_param
+            return True, None
+        else:
+            return True, None
 
     def _call_llm(self):
         response = self.client.chat.completions.create(
