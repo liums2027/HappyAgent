@@ -31,8 +31,7 @@ def list_files(path: str):
                 elif os.path.isdir(temp):
                     temp_result = list_files(temp)
                     if temp_result:
-                        for p in temp_result:
-                            result.append(list_files(p))
+                        result.extend(temp_result)
 
     return result
 
