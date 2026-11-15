@@ -8,7 +8,7 @@ from docstring_parser import parse
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageFunctionToolCall
 
-from security import check_allow
+from security import check_allow, check_params_error
 
 type_mapping = {
     str: "string",
@@ -167,8 +167,11 @@ class HappyAgent:
             tool = self.tool_map[tool_name]
             if tool_name == "finish_chat":
                 return json.loads(params)["final_answer"]
-            
+
             tool_params = json.loads(params)
+            error = check_params_error(tool, tool_params)
+            if error:
+                return f"tool:{tool_name}, param error: {error}, please optimize it!"
             is_allowed, path = self._check_path_allowed(tool, tool_params)
             if not is_allowed:
                 result = f"path not allowed: {path}"

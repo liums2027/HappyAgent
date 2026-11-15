@@ -16,3 +16,8 @@ New-Item -ItemType SymbolicLink -Path "G:\AIWorkSpace\HappyCoding\test_link\exte
 这两个一个是文件，一个是目录
 然后执行list_files("G:\\AIWorkSpace\\HappyCoding")
 发现打印的内容中不会出现link相关的文件
+
+## 2026年11月15日10:05:07
+怎样进行方法的参数验证？
+可以使用pydantic。但是pydantic是针对模型的，而不是针对方法。
+那么久可以将这个方法转成模型，然后再进行验证。
